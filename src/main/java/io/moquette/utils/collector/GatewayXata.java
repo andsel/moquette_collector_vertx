@@ -33,9 +33,6 @@ public class GatewayXata extends AbstractVerticle {
   private DateTimeFormatter dateTimeFormatter;
   private String host;
 
-//  private String baseUri = "https://Andrea-Selva-s-workspace-h24c65.eu-west-1.xata.sh";
-//    private final String token = "xau_2OfwGoGjqWgOKjP2vOuaSmsshUvFKV1q7";
-
   @Override
   public void start() {
     logger.info("Start");
@@ -62,12 +59,12 @@ public class GatewayXata extends AbstractVerticle {
 
     vertx.createHttpServer()
       .requestHandler(router)
-      .listen(8080);
+//      .listen(8080);
+      .listen(80);
   }
 
   private void collect(RoutingContext ctx) {
     final String remoteIpAddr = ctx.request().remoteAddress().hostAddress();
-//    final String remoteIpAddr = "192.168.255.1";
 
     final String localFormattedTime = LocalDateTime.now().format(dateTimeFormatter);
     logger.info("Formatted time: {}", localFormattedTime);
