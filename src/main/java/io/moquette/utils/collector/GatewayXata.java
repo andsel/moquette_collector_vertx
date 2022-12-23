@@ -59,8 +59,8 @@ public class GatewayXata extends AbstractVerticle {
 
     vertx.createHttpServer()
       .requestHandler(router)
-//      .listen(8080);
-      .listen(80);
+      .listen(8080);
+//      .listen(80);
   }
 
   private void collect(RoutingContext ctx) {
