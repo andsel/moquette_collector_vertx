@@ -1,2 +1,2 @@
-rootProject.name = "chapter4"
+rootProject.name = "moquette-collector"
 

@@ -1,5 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   java
+  id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
 repositories {
@@ -14,6 +17,16 @@ dependencies {
   implementation("io.vertx:vertx-web:4.2.1")
   implementation("io.vertx:vertx-web-client:4.2.1")
   implementation("ch.qos.logback:logback-classic:1.2.3")
+}
+
+tasks {
+  named<ShadowJar>("shadowJar") {
+    //archiveBaseName.set("shadow")
+    mergeServiceFiles()
+    manifest {
+      attributes(mapOf("Main-Class" to "io.moquette.utils.collector.Main"))
+    }
+  }
 }
 
 tasks.create<JavaExec>("run") {
