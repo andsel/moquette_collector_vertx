@@ -6,6 +6,7 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
@@ -60,20 +61,34 @@ public class GatewayXata extends AbstractVerticle {
     vertx.createHttpServer()
       .requestHandler(router)
       .listen(8080);
-//      .listen(80);
   }
 
   private void collect(RoutingContext ctx) {
-    final String remoteIpAddr = ctx.request().remoteAddress().hostAddress();
+    final HttpServerRequest request = ctx.request();
+    final String remoteIpAddr = request.remoteAddress().hostAddress();
 
     final String localFormattedTime = LocalDateTime.now().format(dateTimeFormatter);
     logger.info("Formatted time: {}", localFormattedTime);
 
     JsonObject payload = new JsonObject()
       .put("IP", remoteIpAddr)
-      .put("OS", "Windows")
-      .put("startup_date", localFormattedTime)
-      .put("version", "0.15");
+      .put("startup_date", localFormattedTime);
+    final JsonObject requestJson = ctx.getBodyAsJson();
+    copyIfPresent("os", payload, requestJson);
+    copyIfPresent("cpu_arch", payload, requestJson);
+    copyIfPresent("jvm_version", payload, requestJson);
+    copyIfPresent("jvm_vendor", payload, requestJson);
+    copyIfPresent("broker_version", payload, requestJson);
+    copyIfPresent("broker_version", payload, requestJson);
+    copyIfPresent("uuid", payload, requestJson);
+
+    if (requestJson.containsKey("standalone")) {
+      payload.put("standalone", requestJson.getBoolean("standalone"));
+    }
+    if (requestJson.containsKey("max_heap") && !requestJson.getString("max_heap").equals("undefined")) {
+      payload.put("max_heap", requestJson.getLong("max_heap"));
+    }
+
     webClient
       .post(baseUri, "/db/moquette_instances:main/tables/runs/data")
       .bearerTokenAuthentication(token)
@@ -93,6 +108,12 @@ public class GatewayXata extends AbstractVerticle {
         logger.error("Problem accessing Xata", th);
         ctx.fail(502);
       });
+  }
+
+  private void copyIfPresent(String fieldName, JsonObject payload, JsonObject requestJson) {
+    if (requestJson.containsKey(fieldName)) {
+      payload.put(fieldName, requestJson.getString(fieldName));
+    }
   }
 
   private static Future<RequestOptions> reconfigureRedirect(HttpClientResponse resp) {
