@@ -78,15 +78,16 @@ public class GatewayXata extends AbstractVerticle {
     copyIfPresent("cpu_arch", payload, requestJson);
     copyIfPresent("jvm_version", payload, requestJson);
     copyIfPresent("jvm_vendor", payload, requestJson);
-    copyIfPresent("broker_version", payload, requestJson);
-    copyIfPresent("broker_version", payload, requestJson);
+    if (requestJson.containsKey("broker_version")) {
+      payload.put("version", requestJson.getString("broker_version"));
+    }
     copyIfPresent("uuid", payload, requestJson);
 
     if (requestJson.containsKey("standalone")) {
       payload.put("standalone", requestJson.getBoolean("standalone"));
     }
     if (requestJson.containsKey("max_heap") && !requestJson.getString("max_heap").equals("undefined")) {
-      payload.put("max_heap", requestJson.getLong("max_heap"));
+      payload.put("max_heap", Long.parseLong(requestJson.getString("max_heap")));
     }
 
     webClient
