@@ -78,6 +78,7 @@ public class GatewayXata extends AbstractVerticle {
     copyIfPresent("cpu_arch", payload, requestJson);
     copyIfPresent("jvm_version", payload, requestJson);
     copyIfPresent("jvm_vendor", payload, requestJson);
+    copyIfPresent("remote_ip", payload, requestJson);
     if (requestJson.containsKey("broker_version")) {
       payload.put("version", requestJson.getString("broker_version"));
     }
