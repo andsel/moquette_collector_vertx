@@ -17,6 +17,8 @@ dependencies {
   implementation("io.vertx:vertx-web:4.2.1")
   implementation("io.vertx:vertx-web-client:4.2.1")
   implementation("ch.qos.logback:logback-classic:1.2.3")
+  implementation("org.apache.commons:commons-compress:1.22")
+  implementation("com.maxmind.geoip2:geoip2:4.0.0")
 }
 
 tasks {

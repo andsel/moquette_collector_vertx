@@ -50,6 +50,16 @@
       <artifactId>logback-classic</artifactId>
       <version>${logback-classic.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.22</version>
+    </dependency>
+    <dependency>
+      <groupId>com.maxmind.geoip2</groupId>
+      <artifactId>geoip2</artifactId>
+      <version>4.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>

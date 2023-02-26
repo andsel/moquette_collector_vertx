@@ -2,6 +2,7 @@ package io.moquette.utils.collector;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
@@ -70,33 +71,46 @@ public class GatewayXata extends AbstractVerticle {
     final String localFormattedTime = LocalDateTime.now().format(dateTimeFormatter);
     logger.info("Formatted time: {}", localFormattedTime);
 
-    JsonObject payload = new JsonObject()
-      .put("IP", remoteIpAddr)
-      .put("startup_date", localFormattedTime);
     final JsonObject requestJson = ctx.getBodyAsJson();
-    copyIfPresent("os", payload, requestJson);
-    copyIfPresent("cpu_arch", payload, requestJson);
-    copyIfPresent("jvm_version", payload, requestJson);
-    copyIfPresent("jvm_vendor", payload, requestJson);
-    copyIfPresent("remote_ip", payload, requestJson);
-    if (requestJson.containsKey("broker_version")) {
-      payload.put("version", requestJson.getString("broker_version"));
-    }
-    copyIfPresent("uuid", payload, requestJson);
+    vertx.eventBus()
+      .request(GeoIPVerticle.RESOLVER_BUS_ADDRESS, requestJson.getString("remote_ip"))
+      .map((Message<Object> msg) -> {
 
-    if (requestJson.containsKey("standalone")) {
-      payload.put("standalone", requestJson.getBoolean("standalone"));
-    }
-    if (requestJson.containsKey("max_heap") && !requestJson.getString("max_heap").equals("undefined")) {
-      payload.put("max_heap", Long.parseLong(requestJson.getString("max_heap")));
-    }
+        JsonObject payload = new JsonObject()
+          .put("IP", remoteIpAddr)
+          .put("startup_date", localFormattedTime);
+        if (msg.body() instanceof JsonObject) {
+          logger.debug("Location data: {}", msg.body());
+          final JsonObject location = (JsonObject) msg.body();
+          location.forEach(entry -> payload.put(entry.getKey(), entry.getValue()));
+        }
 
-    webClient
-      .post(baseUri, "/db/moquette_instances:main/tables/runs/data")
-      .bearerTokenAuthentication(token)
-      .putHeader("Content-Type", "application/json")
-      .putHeader("Host", host)
-      .sendJson(payload)
+        copyIfPresent("os", payload, requestJson);
+        copyIfPresent("cpu_arch", payload, requestJson);
+        copyIfPresent("jvm_version", payload, requestJson);
+        copyIfPresent("jvm_vendor", payload, requestJson);
+        copyIfPresent("remote_ip", payload, requestJson);
+        if (requestJson.containsKey("broker_version")) {
+          payload.put("version", requestJson.getString("broker_version"));
+        }
+        copyIfPresent("uuid", payload, requestJson);
+
+        if (requestJson.containsKey("standalone")) {
+          payload.put("standalone", requestJson.getBoolean("standalone"));
+        }
+        if (requestJson.containsKey("max_heap") && !requestJson.getString("max_heap").equals("undefined")) {
+          payload.put("max_heap", Long.parseLong(requestJson.getString("max_heap")));
+        }
+        return payload;
+      })
+        .flatMap(payload -> {
+          return webClient
+            .post(baseUri, "/db/moquette_instances:main/tables/runs/data")
+            .bearerTokenAuthentication(token)
+            .putHeader("Content-Type", "application/json")
+            .putHeader("Host", host)
+            .sendJson(payload);
+        })
       .onSuccess(resp -> {
         if (resp.statusCode() != 201) {
           logger.warn("Problem reaching Xata, status code: {} message: {}, resp: {}", resp.statusCode(), resp.statusMessage(), resp.followedRedirects());
