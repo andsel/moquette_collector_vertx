@@ -2,6 +2,7 @@ package io.moquette.utils.collector;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientResponse;
@@ -19,7 +20,11 @@ import io.vertx.ext.web.handler.BodyHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -104,19 +109,29 @@ public class GatewayXata extends AbstractVerticle {
         return payload;
       })
         .flatMap(payload -> {
-          return webClient
-            .post(baseUri, "/db/moquette_instances:main/tables/runs/data")
-            .bearerTokenAuthentication(token)
-            .putHeader("Content-Type", "application/json")
-            .putHeader("Host", host)
-            .sendJson(payload);
+          return vertx.executeBlocking((Promise<HttpResponse<String>> promise) -> {
+            try {
+              final HttpResponse<String> response = jdkHttpClientRequest(payload.encode(), host);
+              promise.complete(response);
+            } catch (URISyntaxException | IOException | InterruptedException ex) {
+              promise.fail(ex);
+            }
+          });
+//          return webClient
+//            .post(baseUri, "/db/moquette_instances:main/tables/runs/data")
+//            .bearerTokenAuthentication(token)
+//            .putHeader("Content-Type", "application/json")
+//            .putHeader("Host", host)
+//            .sendJson(payload);
         })
       .onSuccess(resp -> {
         if (resp.statusCode() != 201) {
-          logger.warn("Problem reaching Xata, status code: {} message: {}, resp: {}", resp.statusCode(), resp.statusMessage(), resp.followedRedirects());
+//          logger.warn("Problem reaching Xata, status code: {} message: {}, resp: {}", resp.statusCode(), resp.statusMessage(), resp.followedRedirects());
+          logger.warn("Problem reaching Xata, status code: {} message: {}", resp.statusCode(), resp);
           ctx.response().setStatusCode(404).end();
         } else {
-          logger.info("Body response: {}", resp.bodyAsJsonObject());
+//          logger.info("Body response: {}", resp.bodyAsJsonObject());
+          logger.info("Body response: {}", resp.body());
           ctx.response().setStatusCode(200).end();
         }
       })
@@ -124,6 +139,20 @@ public class GatewayXata extends AbstractVerticle {
         logger.error("Problem accessing Xata", th);
         ctx.fail(502);
       });
+  }
+
+  private HttpResponse<String> jdkHttpClientRequest(String jsonPayload, String host) throws URISyntaxException, IOException, InterruptedException {
+    HttpRequest request = HttpRequest.newBuilder()
+      .uri(new URI(baseUri + "/db/moquette_instances:main/tables/runs/data"))
+      .header("Authorization", "Bearer " + token)
+      .header("Content-Type", "application/json")
+      .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+      .build();
+
+    return java.net.http.HttpClient.newBuilder()
+      .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
+      .build()
+      .send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   private void copyIfPresent(String fieldName, JsonObject payload, JsonObject requestJson) {
