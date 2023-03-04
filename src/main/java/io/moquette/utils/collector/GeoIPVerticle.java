@@ -1,6 +1,7 @@
 package io.moquette.utils.collector;
 
 import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
 import io.vertx.core.AbstractVerticle;
@@ -164,14 +165,16 @@ public class GeoIPVerticle extends AbstractVerticle {
 
   private JsonObject resolveIP(String ip) throws IOException, GeoIp2Exception {
     InetAddress ipAddress = InetAddress.getByName(ip);
-
-    CityResponse response = reader.city(ipAddress);
-
-    return new JsonObject()
-      .put("nation", response.getCountry().getName())
-      .put("region", response.getMostSpecificSubdivision().getName())
-      .put("city", response.getCity().getName())
-      .put("latitude", response.getLocation().getLatitude())
-      .put("longitude", response.getLocation().getLongitude());
+    try {
+      CityResponse response = reader.city(ipAddress);
+      return new JsonObject()
+        .put("nation", response.getCountry().getName())
+        .put("region", response.getMostSpecificSubdivision().getName())
+        .put("city", response.getCity().getName())
+        .put("latitude", response.getLocation().getLatitude())
+        .put("longitude", response.getLocation().getLongitude());
+    } catch (AddressNotFoundException ex) {
+      return new JsonObject();
+    }
   }
 }
