@@ -83,7 +83,7 @@ public class GeoIPVerticle extends AbstractVerticle {
             final JsonObject resolved = resolveIP(ipAddress);
             promise.complete(resolved);
           } catch (IOException | GeoIp2Exception e) {
-            e.printStackTrace();
+            logger.error("Cannot resolve IP {}", ipAddress, e);
             promise.fail(e);
           }
         }
