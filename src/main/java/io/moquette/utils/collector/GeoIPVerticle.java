@@ -29,10 +29,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GeoIPVerticle extends AbstractVerticle {
 
@@ -41,6 +42,17 @@ public class GeoIPVerticle extends AbstractVerticle {
   private final Logger logger = LoggerFactory.getLogger(GeoIPVerticle.class);
 
   private static final String GEOLITE_DOWNLOAD_TEMPLATE_URI = "/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz";
+
+  private static final String IPV4_PATTERN =
+          "^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(\\.(?!$)|$)){4}$";
+
+  private static final String IPV6_PATTERN1 = "([0-9a-f]{1,4}:){7}([0-9a-f]){1,4}";
+  private static final String IPV6_PATTERN2 = "^((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)::((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)$";
+
+
+  private static final Pattern patternIPv4 = Pattern.compile(IPV4_PATTERN, Pattern.CASE_INSENSITIVE);
+  private static final Pattern patternIPv6_1 = Pattern.compile(IPV6_PATTERN1, Pattern.CASE_INSENSITIVE);
+  private static final Pattern patternIPv6_2 = Pattern.compile(IPV6_PATTERN2, Pattern.CASE_INSENSITIVE);
 
   private DatabaseReader reader;
 
@@ -164,6 +176,14 @@ public class GeoIPVerticle extends AbstractVerticle {
   }
 
   private JsonObject resolveIP(String ip) throws IOException, GeoIp2Exception {
+    if (!isValidIP(ip)) {
+      return new JsonObject()
+              .put("nation", ip)
+              .put("region", ip)
+              .put("city", ip)
+              .put("latitude", 46.12468015)
+              .put("longitude", 11.18093977);
+    }
     InetAddress ipAddress = InetAddress.getByName(ip);
     try {
       CityResponse response = reader.city(ipAddress);
@@ -176,5 +196,16 @@ public class GeoIPVerticle extends AbstractVerticle {
     } catch (AddressNotFoundException ex) {
       return new JsonObject();
     }
+  }
+
+  private static boolean isValidIP(final String ip) {
+    Matcher matcher = patternIPv4.matcher(ip);
+    if (matcher.matches()) {
+      return true;
+    }
+    if (patternIPv6_1.matcher(ip).matches()) {
+      return true;
+    }
+    return patternIPv6_2.matcher(ip).matches();
   }
 }
