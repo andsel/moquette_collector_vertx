@@ -149,6 +149,8 @@ public class GatewayXata extends AbstractVerticle {
       .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
       .build();
 
+    logger.info("Xata HTTP request: {}", request);
+
     return java.net.http.HttpClient.newBuilder()
       .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
       .build()
